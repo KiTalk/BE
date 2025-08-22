@@ -25,7 +25,8 @@ public class MenuConverter {
         .temperature(menu.getTemperature())
         .price(menu.getPrice())
         .category(menu.getCategory())
-        .isActive(menu.getIsActive()) // 누락된 필드 추가
+        .isActive(menu.getIsActive())
+        .profile(menu.getProfile())
         .build();
   }
 
