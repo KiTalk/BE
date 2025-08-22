@@ -37,7 +37,7 @@ public class Menu {
   @Column(name = "is_active", columnDefinition = "TINYINT(1) DEFAULT 1")
   private Boolean isActive = true;
 
-  @Column(name = "is_popular", columnDefinition = "TINYINT(1) DEFAULT 0")
+  @Column(name = "popular", columnDefinition = "TINYINT(1) DEFAULT 0")
   private Boolean isPopular = false;
 
   @Column(name = "profile", length = 500)
