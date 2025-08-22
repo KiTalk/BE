@@ -36,4 +36,10 @@ public class Menu {
 
   @Column(name = "is_active", columnDefinition = "TINYINT(1) DEFAULT 1")
   private Boolean isActive = true;
+
+  @Column(name = "is_popular", columnDefinition = "TINYINT(1) DEFAULT 0")
+  private Boolean isPopular = false;
+
+  @Column(name = "profile", length = 500)
+  private String profile;  // AWS S3 이미지 URL
 }
