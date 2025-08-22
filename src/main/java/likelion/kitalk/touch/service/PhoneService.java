@@ -39,7 +39,7 @@ public class PhoneService {
     private final ObjectMapper objectMapper;
     private final CartUtils cartUtils;
     private final PhoneValidator phoneValidator;
-    private final DataSource dataSource;  // MySQL 연결을 위한 DataSource 추가
+    private final DataSource dataSource;
 
     // Redis 키 상수들
     private static final String CART_KEY_PREFIX = "touch_cart:";
@@ -197,9 +197,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * 전화번호 정규화 (010-0000-0000 형식)
-     */
+    // 전화번호 정규화
     public String normalizePhoneNumber(String phoneNumber) {
         if (phoneNumber == null) {
             return null;
@@ -218,11 +216,7 @@ public class PhoneService {
         return phoneNumber; // 변환 실패시 원본 반환
     }
 
-    // === Private Helper Methods ===
-
-    /**
-     * 전화번호 처리를 위한 세션 상태 검증
-     */
+    // 전화번호 처리를 위한 세션 상태 검증
     private void validateSessionForPhoneProcessing(String sessionId) {
         try {
             String cartKey = CART_KEY_PREFIX + sessionId;
@@ -249,9 +243,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * 이미 완료된 주문인지 확인
-     */
+    // 이미 완료된 주문인지 확인
     private boolean isOrderAlreadyCompleted(String sessionId) {
         try {
             String completedKey = SESSION_COMPLETED_KEY_PREFIX + sessionId;
@@ -262,9 +254,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * 장바구니 데이터 조회 및 검증
-     */
+    // 장바구니 데이터 조회 및 검증
     private Map<String, Object> getCartDataWithValidation(String sessionId) {
         try {
             String cartKey = CART_KEY_PREFIX + sessionId;
@@ -292,9 +282,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * 포장 방식 조회 및 검증
-     */
+    // 포장 방식 조회 및 검증
     private String getPackagingTypeWithValidation(String sessionId) {
         try {
             String packagingKey = PACKAGING_KEY_PREFIX + sessionId;
@@ -328,9 +316,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * Redis에 전화번호 저장
-     */
+    // Redis에 전화번호 저장
     private void savePhoneNumberToRedis(String sessionId, String normalizedPhone) {
         try {
             String phoneKey = PHONE_KEY_PREFIX + sessionId;
@@ -352,9 +338,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * Redis에서 전화번호 조회
-     */
+    // Redis에서 전화번호 조회
     private String getPhoneNumber(String sessionId) {
         try {
             String phoneKey = PHONE_KEY_PREFIX + sessionId;
@@ -381,9 +365,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * 세션을 완료 상태로 업데이트
-     */
+    // 세션을 완료 상태로 업데이트
     private void updateSessionToCompleted(String sessionId, int orderId) {
         try {
             String sessionKey = SESSION_COMPLETED_KEY_PREFIX + sessionId;
@@ -402,9 +384,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * MySQL에 주문 저장
-     */
+    // MYSQL에 주문 저장
     private int saveOrderToMySQL(List<CartItemDetail> orders, String packagingType, String phoneNumber) {
         log.info("MySQL 주문 저장 시작 - packaging: {}, phone: {}, orders: {}", 
             packagingType, phoneNumber != null ? phoneNumber.replaceAll("\\d(?=\\d{4})", "*") : "null", orders.size());
@@ -528,9 +508,7 @@ public class PhoneService {
         }
     }
 
-    /**
-     * PhoneResponse를 Map으로 변환
-     */
+    // PhoneResponse를 Map으로 변환
     private Map<String, Object> convertToMap(PhoneResponse response) {
         Map<String, Object> map = new HashMap<>();
         map.put("message", response.getMessage());
@@ -538,9 +516,7 @@ public class PhoneService {
         return map;
     }
 
-    /**
-     * OrderCompleteResponse를 Map으로 변환
-     */
+    // OrderCompleteResponse를 Map으로 변환
     private Map<String, Object> convertToMap(OrderCompleteResponse response) {
         Map<String, Object> map = new HashMap<>();
         map.put("message", response.getMessage());
