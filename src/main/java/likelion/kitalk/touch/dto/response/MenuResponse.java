@@ -16,4 +16,5 @@ public class MenuResponse {
   private Integer price;
   private String category;
   private Boolean isActive;
+  private String profile;
 }
