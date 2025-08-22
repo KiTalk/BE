@@ -165,4 +165,11 @@ public class MenuService {
 
     log.debug("카테고리 유효성 검증 통과: '{}'", trimmedCategory);
   }
+
+  // 메뉴 ID로 메뉴 불러오기
+  public Menu getMenuById(Long menuId) {
+    return menuRepository.findById(menuId)
+        .filter(Menu::getIsActive)  // 활성화된 메뉴만
+        .orElseThrow(() -> new CustomException(MenuErrorCode.MENU_NOT_FOUND));
+  }
 }
