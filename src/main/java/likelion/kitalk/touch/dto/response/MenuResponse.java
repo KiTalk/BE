@@ -17,4 +17,5 @@ public class MenuResponse {
   private String category;
   private Boolean isActive;
   private String profile;
+  private boolean popular;
 }
