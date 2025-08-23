@@ -9,6 +9,12 @@ import org.springframework.data.repository.query.Param;
 
 public interface OrderItemsRepository extends JpaRepository<OrderItems, Long> {
 
+  /**
+   * Retrieves all OrderItems whose orderId is in the given collection, ordered by orderId then item id (both ascending).
+   *
+   * @param orderIds collection of order IDs to fetch items for
+   * @return list of matching OrderItems ordered by orderId ASC, id ASC
+   */
   @Query("""
         SELECT oi
         FROM OrderItems oi
@@ -19,6 +25,17 @@ public interface OrderItemsRepository extends JpaRepository<OrderItems, Long> {
       @Param("orderIds") Collection<Long> orderIds
   );
 
+  /**
+   * Returns the top 3 most-ordered menus for a customer phone number.
+   *
+   * Executes a native query that counts distinct orders per menu (menuId, menuName)
+   * for orders associated with the given phone number and returns the three menus
+   * with highest distinct-order counts; results are ordered by order count
+   * descending then menuId ascending and mapped to the TopMenuRow projection.
+   *
+   * @param phone the customer's phone number to filter orders by
+   * @return a list of up to three TopMenuRow projections containing menuId, menuName, and orderCount
+   */
   @Query(value = """
         SELECT 
             oi.menu_id   AS menuId,
@@ -34,8 +51,29 @@ public interface OrderItemsRepository extends JpaRepository<OrderItems, Long> {
   List<TopMenuRow> findTopMenusByPhone(@Param("phone") String phone);
 
   interface TopMenuRow {
-    Long getMenuId();
-    String getMenuName();
-    Long getOrderCount();
+    /**
+ * Returns the menu's identifier.
+ *
+ * Maps to the `menu_id` column produced by the repository query.
+ *
+ * @return the menu id, or null if not present
+ */
+Long getMenuId();
+    /**
+ * Returns the menu's display name.
+ *
+ * This value maps to the native query column `menuName` in the projection.
+ *
+ * @return the menu name (as returned by the query)
+ */
+String getMenuName();
+    /**
+ * Returns the number of distinct orders that included this menu item.
+ *
+ * <p>Maps to the `orderCount` column from the native query; may be null if no value is present.</p>
+ *
+ * @return the count of distinct orders for this menu
+ */
+Long getOrderCount();
   }
 }

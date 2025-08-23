@@ -516,7 +516,16 @@ public class PhoneService {
         return map;
     }
 
-    // OrderCompleteResponse를 Map으로 변환
+    /**
+     * Convert an OrderCompleteResponse into a Map suitable for API responses.
+     *
+     * The resulting map contains these keys:
+     * "message", "order_id", "orders", "total_items", "total_price",
+     * "packaging", "phone_number", and "next_step".
+     *
+     * @param response the OrderCompleteResponse to convert
+     * @return a map representation of the response with the keys listed above
+     */
     private Map<String, Object> convertToMap(OrderCompleteResponse response) {
         Map<String, Object> map = new HashMap<>();
         map.put("message", response.getMessage());
@@ -530,6 +539,22 @@ public class PhoneService {
         return map;
     }
 
+    /**
+     * Completes an order for the given touch session using the phone number already stored in Redis.
+     *
+     * Validates the request and session state, ensures the order has not been completed, loads and
+     * validates cart and packaging data, requires that a phone number is present in Redis, persists
+     * the order and its items to MySQL, marks the session as completed (short TTL), and returns a
+     * response map describing the completed order.
+     *
+     * @param sessionId the touch-session identifier used to read/write session, cart, packaging, and phone data
+     * @return a Map representation of OrderCompleteResponse containing keys:
+     *         "message", "order_id", "orders" (list of CartItemDetail), "total_items",
+     *         "total_price", "packaging", "phone_number", and "next_step"
+     * @throws CustomException when validation fails or required data is missing (e.g., session expired,
+     *         no items to order, phone number required, or order already completed). Unexpected errors
+     *         during persistence are wrapped and thrown as a CustomException with code ORDER_SAVE_FAILED.
+     */
     public Map<String, Object> completeOrderWithoutPhone(String sessionId) {
         log.info("주문 완료(전화번호 재입력 없음) 처리 시작 - sessionId: {}", sessionId);
         try {
@@ -586,6 +611,21 @@ public class PhoneService {
         }
     }
 
+    /**
+     * Save a user's phone number for the given session and acknowledge success.
+     *
+     * Normalizes and persists the provided phone number to Redis (refreshing/creating the session cart key if needed),
+     * then returns a response map for the next UI step. The method rethrows any CustomException produced by validators
+     * or internal checks; unexpected errors are wrapped and thrown as PhoneErrorCode.PHONE_DATA_SAVE_FAILED.
+     *
+     * Side effects:
+     * - May create an empty cart entry for the session if none exists.
+     * - Persists a normalized phone number in Redis with the service's configured TTL.
+     *
+     * @param sessionId the touch session identifier
+     * @param phone raw phone number input (will be normalized before storage)
+     * @return a map containing "message" and "next_step" suitable for the API response
+     */
     public Map<String, Object> savePhone(String sessionId, String phone) {
         log.info("전화번호 저장 처리 시작 - sessionId: {}, phone(masked): {}",
             sessionId, phone != null ? phone.replaceAll("\\d(?=\\d{4})", "*") : "null");
@@ -622,6 +662,16 @@ public class PhoneService {
         }
     }
 
+    /**
+     * Ensure a Redis cart key exists for the given session; if absent, create an empty cart and store it with the configured TTL.
+     *
+     * <p>The method is idempotent: if the cart key already exists nothing is changed. When creating a new cart it adds an
+     * `updatedAt` timestamp (ISO_LOCAL_DATE_TIME) to the empty cart payload and stores the serialized JSON under
+     * `CART_KEY_PREFIX + sessionId` with expiration `CART_EXPIRE_HOURS`.</p>
+     *
+     * @param sessionId  the session identifier used to build the Redis cart key
+     * @throws CustomException with PhoneErrorCode.REDIS_CONNECTION_FAILED if the cart cannot be created or stored in Redis
+     */
     private void ensureCartKeyExists(String sessionId) {
         try {
             String cartKey = CART_KEY_PREFIX + sessionId;
