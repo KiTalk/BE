@@ -27,6 +27,7 @@ public class MenuConverter {
         .category(menu.getCategory())
         .isActive(menu.getIsActive())
         .profile(menu.getProfile())
+        .popular(menu.getIsPopular() != null ? menu.getIsPopular() : false)
         .build();
   }
 
