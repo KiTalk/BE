@@ -25,12 +25,25 @@ public class CartController {
 
   private final CartService cartService;
 
+  /**
+   * Add a menu item to the cart for the given session.
+   *
+   * <p>Accepts a session identifier and a CartAddRequest (typically containing menuId and quantity).
+   * On success returns HTTP 200 with a response map produced by the cart service (current cart state or
+   * operation result). On failure returns a ResponseEntity containing an error map and an appropriate
+   * HTTP status (CustomException yields its mapped status; other errors yield 500).</p>
+   *
+   * @param sessionId the touch session identifier for the cart
+   * @param request   the add-to-cart request (menu id and quantity)
+   * @return a ResponseEntity whose body is a map with either the service response (on success) or an
+   *         error payload (on failure)
+   */
   @Operation(
       summary = "메뉴 추가"
   )
 
   @PostMapping("/{sessionId}/add")
-  public ResponseEntity<Map<String, Object>> addToCart(@PathVariable String sessionId, @RequestBody CartAddRequest request) {
+  public ResponseEntity<Map<String, Object>> addToCart(@PathVariable("sessionId") String sessionId, @RequestBody CartAddRequest request) {
     log.info("장바구니 추가 API 호출 - sessionId: {}, menuId: {}, quantity: {}",
         sessionId, request.getMenuId(), request.getQuantity());
 
@@ -52,12 +65,26 @@ public class CartController {
     }
   }
 
+  /**
+   * Partially updates a user's cart for the given session.
+   *
+   * <p>Applies the changes described in the provided CartUpdateRequest to the cart identified
+   * by sessionId and returns a response map with the updated cart state and metadata.
+   * On success returns HTTP 200 with the service response; on error the controller maps
+   * known domain errors to their corresponding HTTP status and returns a standardized
+   * error body, while unexpected errors yield HTTP 500.</p>
+   *
+   * @param sessionId the session identifier for the cart to update
+   * @param request   the partial update payload describing changes to apply to the cart
+   * @return a ResponseEntity containing a map with the operation result (on success) or
+   *         an error body (on failure)
+   */
   @Operation(
       summary = "장바구니 업데이트 (부분 업데이트)"
   )
 
   @PutMapping("/{sessionId}/update")
-  public ResponseEntity<Map<String, Object>> updateCart(@PathVariable String sessionId, @RequestBody CartUpdateRequest request) {
+  public ResponseEntity<Map<String, Object>> updateCart(@PathVariable("sessionId") String sessionId, @RequestBody CartUpdateRequest request) {
     log.info("장바구니 업데이트 API 호출 - sessionId: {}, 요청 항목 수: {}",
         sessionId, request.getOrders() != null ? request.getOrders().size() : 0);
 
@@ -79,12 +106,23 @@ public class CartController {
     }
   }
 
+  /**
+   * Remove a menu item from the cart for the given session.
+   *
+   * <p>Calls the cart service to remove the specified menu item and returns a ResponseEntity
+   * containing a result map. On success the body contains the service response; on failure
+   * the body is an error map with keys like `success`, `message`, `status`, and `timestamp`.</p>
+   *
+   * @param sessionId the session identifier for the cart
+   * @param request   request payload containing the menu item to remove (e.g., `menuId`)
+   * @return a ResponseEntity whose body is a map with the operation result or an error payload
+   */
   @Operation(
       summary = "특정 메뉴 삭제"
   )
 
   @DeleteMapping("/{sessionId}/remove")
-  public ResponseEntity<Map<String, Object>> removeMenuItem(@PathVariable String sessionId, @RequestBody CartRemoveRequest request) {
+  public ResponseEntity<Map<String, Object>> removeMenuItem(@PathVariable("sessionId") String sessionId, @RequestBody CartRemoveRequest request) {
     log.info("메뉴 삭제 API 호출 - sessionId: {}, menuId: {}",
         sessionId, request.getMenuId());
 
@@ -106,12 +144,18 @@ public class CartController {
     }
   }
 
+  /**
+   * Removes all items from the cart for the specified session and returns the result.
+   *
+   * @param sessionId the session identifier of the cart to clear
+   * @return HTTP 200 with the service response map on success; on error returns a ResponseEntity containing an error body and the appropriate HTTP status
+   */
   @Operation(
       summary = "장바구니 전체 지우기"
   )
 
   @DeleteMapping("/{sessionId}/clear")
-  public ResponseEntity<Map<String, Object>> clearCart(@PathVariable String sessionId) {
+  public ResponseEntity<Map<String, Object>> clearCart(@PathVariable("sessionId") String sessionId) {
     log.info("장바구니 비우기 API 호출 - sessionId: {}", sessionId);
 
     try {
@@ -154,12 +198,24 @@ public class CartController {
     }
   }
 
+  /**
+   * Set the packaging type for the cart identified by the given session.
+   *
+   * <p>Accepts a PackagingRequest and updates the cart's packaging preference via the CartService.
+   * On success returns HTTP 200 with the service response map. If a CustomException occurs the
+   * response uses the exception's error status and message; unexpected errors return HTTP 500 with
+   * a generic error message.
+   *
+   * @param sessionId the cart session identifier
+   * @param request   request payload containing the desired packaging type
+   * @return ResponseEntity containing a map with the operation result or an error payload
+   */
   @Operation(
       summary = "포장 방식 설정"
   )
 
   @PostMapping("/{sessionId}/packaging")
-  public ResponseEntity<Map<String, Object>> setPackagingType(@PathVariable String sessionId, @RequestBody PackagingRequest request) {  // ✅ 수정: @PathVariable 추가
+  public ResponseEntity<Map<String, Object>> setPackagingType(@PathVariable("sessionId") String sessionId, @RequestBody PackagingRequest request) {
     log.info("포장 방식 설정 API 호출 - sessionId: {}, packagingType: {}",
         sessionId, request.getPackagingType());
 

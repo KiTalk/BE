@@ -516,7 +516,16 @@ public class PhoneService {
         return map;
     }
 
-    // OrderCompleteResponse를 Map으로 변환
+    /**
+     * Convert an OrderCompleteResponse into a Map suitable for API responses.
+     *
+     * The resulting map contains these keys:
+     * "message", "order_id", "orders", "total_items", "total_price",
+     * "packaging", "phone_number", and "next_step".
+     *
+     * @param response the OrderCompleteResponse to convert
+     * @return a map representation of the response with the keys listed above
+     */
     private Map<String, Object> convertToMap(OrderCompleteResponse response) {
         Map<String, Object> map = new HashMap<>();
         map.put("message", response.getMessage());
@@ -528,5 +537,159 @@ public class PhoneService {
         map.put("phone_number", response.getPhone_number());
         map.put("next_step", response.getNext_step());
         return map;
+    }
+
+    /**
+     * Completes an order for the given touch session using the phone number already stored in Redis.
+     *
+     * Validates the request and session state, ensures the order has not been completed, loads and
+     * validates cart and packaging data, requires that a phone number is present in Redis, persists
+     * the order and its items to MySQL, marks the session as completed (short TTL), and returns a
+     * response map describing the completed order.
+     *
+     * @param sessionId the touch-session identifier used to read/write session, cart, packaging, and phone data
+     * @return a Map representation of OrderCompleteResponse containing keys:
+     *         "message", "order_id", "orders" (list of CartItemDetail), "total_items",
+     *         "total_price", "packaging", "phone_number", and "next_step"
+     * @throws CustomException when validation fails or required data is missing (e.g., session expired,
+     *         no items to order, phone number required, or order already completed). Unexpected errors
+     *         during persistence are wrapped and thrown as a CustomException with code ORDER_SAVE_FAILED.
+     */
+    public Map<String, Object> completeOrderWithoutPhone(String sessionId) {
+        log.info("주문 완료(전화번호 재입력 없음) 처리 시작 - sessionId: {}", sessionId);
+        try {
+            phoneValidator.validateCompleteOrderRequest(sessionId);
+            validateSessionForPhoneProcessing(sessionId);
+
+            if (isOrderAlreadyCompleted(sessionId)) {
+                log.warn("이미 완료된 주문 - sessionId: {}", sessionId);
+                throw new CustomException(PhoneErrorCode.ORDER_ALREADY_COMPLETED);
+            }
+
+            Map<String, Object> cartData = getCartDataWithValidation(sessionId);
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> items = (List<Map<String, Object>>) cartData.get("items");
+            if (items == null || items.isEmpty()) {
+                log.warn("주문할 메뉴가 없음 - sessionId: {}", sessionId);
+                throw new CustomException(PhoneErrorCode.NO_ITEMS_TO_ORDER);
+            }
+
+            List<CartItemDetail> orders = cartUtils.convertToCartItemDetails(items);
+            int totalPrice = cartUtils.calculateTotalPrice(items);
+            String packaging = getPackagingTypeWithValidation(sessionId);
+
+            String phoneNumber = getPhoneNumber(sessionId);
+            if (phoneNumber == null || phoneNumber.isBlank()) {
+                throw new CustomException(PhoneErrorCode.PHONE_NUMBER_REQUIRED);
+            }
+
+            int orderId = saveOrderToMySQL(orders, packaging, phoneNumber);
+            updateSessionToCompleted(sessionId, orderId);
+
+            log.info("주문 완료 처리 성공 - sessionId: {}, orderId: {}, totalPrice: {}원",
+                sessionId, orderId, totalPrice);
+
+            OrderCompleteResponse response = OrderCompleteResponse.builder()
+                .message("주문이 완료되었습니다!")
+                .order_id(orderId)
+                .orders(orders)
+                .total_items(orders.size())
+                .total_price(totalPrice)
+                .packaging(packaging)
+                .phone_number(phoneNumber)
+                .next_step("주문 완료")
+                .build();
+
+            return convertToMap(response);
+
+        } catch (CustomException e) {
+            log.warn("주문 완료 처리 실패 - sessionId: {}, error: {}", sessionId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("주문 완료 처리 중 예상치 못한 오류 - sessionId: {}", sessionId, e);
+            throw new CustomException(PhoneErrorCode.ORDER_SAVE_FAILED);
+        }
+    }
+
+    /**
+     * Save a user's phone number for the given session and acknowledge success.
+     *
+     * Normalizes and persists the provided phone number to Redis (refreshing/creating the session cart key if needed),
+     * then returns a response map for the next UI step. The method rethrows any CustomException produced by validators
+     * or internal checks; unexpected errors are wrapped and thrown as PhoneErrorCode.PHONE_DATA_SAVE_FAILED.
+     *
+     * Side effects:
+     * - May create an empty cart entry for the session if none exists.
+     * - Persists a normalized phone number in Redis with the service's configured TTL.
+     *
+     * @param sessionId the touch session identifier
+     * @param phone raw phone number input (will be normalized before storage)
+     * @return a map containing "message" and "next_step" suitable for the API response
+     */
+    public Map<String, Object> savePhone(String sessionId, String phone) {
+        log.info("전화번호 저장 처리 시작 - sessionId: {}, phone(masked): {}",
+            sessionId, phone != null ? phone.replaceAll("\\d(?=\\d{4})", "*") : "null");
+
+        try {
+            // 1) 요청/형식 검증 (세션ID 형식 + 전화번호 형식만 검사)
+            PhoneInputRequest req = PhoneInputRequest.builder()
+                .phone_number(phone)
+                .build();
+            phoneValidator.validatePhoneInputRequest(sessionId, req);
+
+            // 2) 장바구니 키 없으면 생성 (여기서 세션 실체화)
+            ensureCartKeyExists(sessionId);
+
+            // 3) 전화번호 정규화 + Redis 저장
+            String normalizedPhone = normalizePhoneNumber(phone);
+            savePhoneNumberToRedis(sessionId, normalizedPhone);
+
+            // 4) 응답
+            PhoneResponse response = PhoneResponse.builder()
+                .message("전화번호가 저장되었습니다.")
+                .next_step("주문 완료")
+                .build();
+
+            log.info("전화번호 저장 처리 완료 - sessionId: {}", sessionId);
+            return convertToMap(response);
+
+        } catch (CustomException e) {
+            log.warn("전화번호 저장 처리 실패 - sessionId: {}, error: {}", sessionId, e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("전화번호 저장 처리 중 예상치 못한 오류 - sessionId: {}", sessionId, e);
+            throw new CustomException(PhoneErrorCode.PHONE_DATA_SAVE_FAILED);
+        }
+    }
+
+    /**
+     * Ensure a Redis cart key exists for the given session; if absent, create an empty cart and store it with the configured TTL.
+     *
+     * <p>The method is idempotent: if the cart key already exists nothing is changed. When creating a new cart it adds an
+     * `updatedAt` timestamp (ISO_LOCAL_DATE_TIME) to the empty cart payload and stores the serialized JSON under
+     * `CART_KEY_PREFIX + sessionId` with expiration `CART_EXPIRE_HOURS`.</p>
+     *
+     * @param sessionId  the session identifier used to build the Redis cart key
+     * @throws CustomException with PhoneErrorCode.REDIS_CONNECTION_FAILED if the cart cannot be created or stored in Redis
+     */
+    private void ensureCartKeyExists(String sessionId) {
+        try {
+            String cartKey = CART_KEY_PREFIX + sessionId;
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(cartKey))) {
+                return;
+            }
+
+            Map<String, Object> emptyCart = cartUtils.createEmptyCart();
+            emptyCart.put("updatedAt", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+            String cartJson = objectMapper.writeValueAsString(emptyCart);
+            redisTemplate.opsForValue().set(cartKey, cartJson, CART_EXPIRE_HOURS, TimeUnit.HOURS);
+
+            log.info("장바구니 키가 없어 새로 생성 - sessionId: {}", sessionId);
+
+        } catch (Exception e) {
+            log.error("장바구니 키 생성 실패 - sessionId: {}", sessionId, e);
+            throw new CustomException(PhoneErrorCode.REDIS_CONNECTION_FAILED);
+        }
     }
 }
