@@ -134,11 +134,6 @@ public class MenuService {
     }
   }
 
-  /**
-   * 카테고리 유효성 검증
-   * @param category 검증할 카테고리명
-   * @throws CustomException 유효하지 않은 카테고리인 경우
-   */
   // 카테고리 유효성 검증
   private void validateCategory(String category) {
     if (category == null || category.trim().isEmpty()) {
