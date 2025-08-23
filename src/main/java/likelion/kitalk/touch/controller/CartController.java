@@ -30,7 +30,7 @@ public class CartController {
   )
 
   @PostMapping("/{sessionId}/add")
-  public ResponseEntity<Map<String, Object>> addToCart(@PathVariable String sessionId, @RequestBody CartAddRequest request) {
+  public ResponseEntity<Map<String, Object>> addToCart(@PathVariable("sessionId") String sessionId, @RequestBody CartAddRequest request) {
     log.info("장바구니 추가 API 호출 - sessionId: {}, menuId: {}, quantity: {}",
         sessionId, request.getMenuId(), request.getQuantity());
 
@@ -57,7 +57,7 @@ public class CartController {
   )
 
   @PutMapping("/{sessionId}/update")
-  public ResponseEntity<Map<String, Object>> updateCart(@PathVariable String sessionId, @RequestBody CartUpdateRequest request) {
+  public ResponseEntity<Map<String, Object>> updateCart(@PathVariable("sessionId") String sessionId, @RequestBody CartUpdateRequest request) {
     log.info("장바구니 업데이트 API 호출 - sessionId: {}, 요청 항목 수: {}",
         sessionId, request.getOrders() != null ? request.getOrders().size() : 0);
 
@@ -84,7 +84,7 @@ public class CartController {
   )
 
   @DeleteMapping("/{sessionId}/remove")
-  public ResponseEntity<Map<String, Object>> removeMenuItem(@PathVariable String sessionId, @RequestBody CartRemoveRequest request) {
+  public ResponseEntity<Map<String, Object>> removeMenuItem(@PathVariable("sessionId") String sessionId, @RequestBody CartRemoveRequest request) {
     log.info("메뉴 삭제 API 호출 - sessionId: {}, menuId: {}",
         sessionId, request.getMenuId());
 
@@ -111,7 +111,7 @@ public class CartController {
   )
 
   @DeleteMapping("/{sessionId}/clear")
-  public ResponseEntity<Map<String, Object>> clearCart(@PathVariable String sessionId) {
+  public ResponseEntity<Map<String, Object>> clearCart(@PathVariable("sessionId") String sessionId) {
     log.info("장바구니 비우기 API 호출 - sessionId: {}", sessionId);
 
     try {
@@ -159,7 +159,7 @@ public class CartController {
   )
 
   @PostMapping("/{sessionId}/packaging")
-  public ResponseEntity<Map<String, Object>> setPackagingType(@PathVariable String sessionId, @RequestBody PackagingRequest request) {  // ✅ 수정: @PathVariable 추가
+  public ResponseEntity<Map<String, Object>> setPackagingType(@PathVariable("sessionId") String sessionId, @RequestBody PackagingRequest request) {
     log.info("포장 방식 설정 API 호출 - sessionId: {}, packagingType: {}",
         sessionId, request.getPackagingType());
 
