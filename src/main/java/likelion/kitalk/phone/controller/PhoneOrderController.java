@@ -15,12 +15,6 @@ public class PhoneOrderController {
 
   private final PhoneOrderService service;
 
-  /**
-   * Retrieve up to five most recent orders for the given phone number.
-   *
-   * @param phone the phone number to filter orders by
-   * @return a BaseResponse wrapping a PhoneOrdersResponse containing up to 5 most recent orders for the provided phone
-   */
   @GetMapping("/orders")
   @Operation(
       summary = "최근 주문 5건 조회",
@@ -32,15 +26,6 @@ public class PhoneOrderController {
     return BaseResponse.success(service.getRecentOrders(phone));
   }
 
-  /**
-   * Returns the top 3 most-ordered menu items for the specified phone number.
-   *
-   * Filters orders by the provided phone number and returns up to three menu entries
-   * ranked by order frequency.
-   *
-   * @param phone the phone number used to filter orders
-   * @return a BaseResponse wrapping a TopMenusResponse containing up to three top-ordered menu entries
-   */
   @GetMapping("/top-menus")
   @Operation(
       summary = "가장 많이 주문한 메뉴 TOP 3",
