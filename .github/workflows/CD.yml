@@ -64,7 +64,7 @@ jobs:
 
             # Spring 외부 설정 파일 존재 체크 (없으면 경고만)
             if [ ! -f resources/application-prod.properties ]; then
-              echo "⚠️ resources/application-prod.properties not found. Make sure it's present and mounted."
+              echo "resources/application-prod.properties not found. Make sure it's present and mounted."
             fi
 
             # spring 디렉토리에서 최신 JAR를 app.jar로 고정
