@@ -21,25 +21,11 @@ public class PhoneOrderService {
   private final OrderRepository orderRepository;
   private final OrderItemsRepository orderItemsRepository;
 
-  /**
-   * Creates a PhoneOrderService with the required repositories.
-   */
   public PhoneOrderService(OrderRepository orderRepository, OrderItemsRepository orderItemsRepository) {
     this.orderRepository = orderRepository;
     this.orderItemsRepository = orderItemsRepository;
   }
 
-  /**
-   * Retrieves up to five most recent orders for the given phone number and returns them with their items.
-   *
-   * The response contains an ordered list of order blocks (most recent first), each with the order ID
-   * and its associated order lines (menuId, menuName, price, temp). Order items are loaded for all
-   * returned orders and grouped by order ID to preserve the original order grouping.
-   *
-   * @param phone the phone number to look up orders for
-   * @return a PhoneOrdersResponse containing up to five recent orders and their items
-   * @throws CustomException if no orders are found for the provided phone (PhoneOrderErrorCode.PHONE_ORDER_NOT_FOUND)
-   */
   public PhoneOrdersResponse getRecentOrders(String phone) {
     var pageable = PageRequest.of(0, 5);
 
@@ -70,22 +56,14 @@ public class PhoneOrderService {
           ))
           .toList();
 
-      blocks.add(new PhoneOrdersResponse.OrderBlock(o.getId(), lines));
+      blocks.add(new PhoneOrdersResponse.OrderBlock(
+          o.getId(), o.getCreatedAt(), lines
+      ));
     }
 
     return new PhoneOrdersResponse(blocks);
   }
 
-  /**
-   * Retrieves top-ordered menus for the customer identified by the given phone number.
-   *
-   * Queries order items to compute top menu statistics for that phone and returns them
-   * as a TopMenusResponse containing MenuStat entries (menuId, menuName, orderCount).
-   *
-   * @param phone the customer's phone number to query top menus for
-   * @return a TopMenusResponse containing the list of menu statistics
-   * @throws CustomException if no orders are found for the provided phone (PhoneOrderErrorCode.PHONE_ORDER_NOT_FOUND)
-   */
   public TopMenusResponse getTopMenusByPhone(String phone) {
     List<TopMenuRow> rows = orderItemsRepository.findTopMenusByPhone(phone);
 
