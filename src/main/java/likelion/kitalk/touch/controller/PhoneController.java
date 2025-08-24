@@ -53,15 +53,6 @@ public class PhoneController {
         }
     }
 
-    /**
-     * Handle submission of a user's phone number for a given session.
-     *
-     * Processes the provided phone number via the phone service and returns the service's response map on success.
-     *
-     * @param sessionId identifier for the current session
-     * @param request   request DTO containing the phone number to process
-     * @return ResponseEntity containing a Map<String, Object> with the service result on success, or a structured error payload on failure
-     */
     @Operation(
         summary = "전화번호 입력"
     )
@@ -92,14 +83,6 @@ public class PhoneController {
         }
     }
 
-    /**
-     * Completes an order for the given session when no phone number is provided.
-     *
-     * Calls the service to finalize the order immediately for the specified session.
-     *
-     * @param sessionId the touch-session identifier for which the order should be completed
-     * @return a ResponseEntity containing the service result map on success (HTTP 200), or an error response map with an appropriate HTTP status when completion fails
-     */
     @PostMapping("/{sessionId}/complete")
     @Operation(
         summary = "주문 완료(전화번호 입력 X)",
@@ -126,14 +109,6 @@ public class PhoneController {
         }
     }
 
-    /**
-     * Persist the provided phone number for the given session.
-     *
-     * <p>Accepts a PhoneSaveRequest and stores its phone value in the session identified by {@code sessionId}.
-     *
-     * @param request PhoneSaveRequest whose {@code getPhone()} value will be saved for the session
-     * @return ResponseEntity containing the service response map on success (HTTP 200) or an error response map on failure
-     */
     @PostMapping("/{sessionId}/phone_number")
     @Operation(
         summary = "전화번호 저장",
@@ -159,19 +134,6 @@ public class PhoneController {
         }
     }
 
-    /**
-     * Build a standardized error response payload wrapped in a ResponseEntity with the given HTTP status.
-     *
-     * The response body is a Map with keys:
-     * - "success" (Boolean): always false
-     * - "message" (String): provided human-readable error message
-     * - "status" (Integer): numeric HTTP status code
-     * - "timestamp" (Long): epoch milliseconds when the response was created
-     *
-     * @param status  HTTP status to set on the ResponseEntity and include in the payload
-     * @param message Human-readable error message to include in the payload
-     * @return ResponseEntity containing the error map and the provided HTTP status
-     */
     private ResponseEntity<Map<String, Object>> createErrorResponse(HttpStatus status, String message) {
         Map<String, Object> errorResponse = new HashMap<>();
         errorResponse.put("success", false);
