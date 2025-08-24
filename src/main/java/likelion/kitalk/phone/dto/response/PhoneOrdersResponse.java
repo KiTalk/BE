@@ -17,6 +17,7 @@ public record PhoneOrdersResponse(
       @JsonProperty("menu_id") Long menuId,
       @JsonProperty("menu_item") String menuItem,
       @JsonProperty("price") Integer price,
-      @JsonProperty("temp") String temp
+      @JsonProperty("temp") String temp,
+      @JsonProperty("profile") String profile
   ) {}
 }

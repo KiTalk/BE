@@ -9,6 +9,8 @@ public record TopMenusResponse(
   public record MenuStat(
       @JsonProperty("menu_id") Long menuId,
       @JsonProperty("menu_item") String menuItem,
+      @JsonProperty("temp") String temp,
+      @JsonProperty("profile") String profile,
       @JsonProperty("count") Long count   // 주문 건수 기준(동일 주문 내 중복 1회)
   ) {}
 }
