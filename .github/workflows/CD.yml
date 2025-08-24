@@ -7,7 +7,6 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -23,15 +22,34 @@ jobs:
           ./gradlew build -x test
           ls -al build/libs
 
-      # 최신 JAR을 EC2(AL2023)로 복사 (계정: ec2-user)
-      - name: Transfer JAR to EC2 via SCP
+      - name: Pick latest jar as app.jar
+        id: jar
+        shell: bash
+        run: |
+          set -e
+          JAR=$(ls -t build/libs/*.jar | head -1)
+          echo "latest jar: $JAR"
+          cp "$JAR" app.jar
+          ls -al app.jar
+
+      # ✅ 원격 디렉토리 보장
+      - name: Ensure remote dir
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            mkdir -p /home/ec2-user/kitalk/spring
+
+      - name: Upload app.jar via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
-          source: "build/libs/*.jar"
-          target: "/home/ec2-user/kitalk/spring/"
+          source: "app.jar"
+          target: "/home/ec2-user/kitalk/spring/app.jar" 
 
       - name: SSH & Deploy on EC2 (Amazon Linux 2023)
         uses: appleboy/ssh-action@v1.0.3
@@ -44,7 +62,7 @@ jobs:
 
             cd /home/ec2-user/kitalk
 
-            # AL2023: Docker & compose plugin 설치/기동 (idempotent)
+            # Docker / compose plugin (AL2023)
             if ! command -v docker >/dev/null 2>&1; then
               sudo dnf update -y
               sudo dnf install -y docker
@@ -52,39 +70,29 @@ jobs:
               sudo systemctl start docker
               sudo usermod -aG docker ec2-user || true
             fi
-            if ! docker compose version >/dev/null 2>&1; then
+            if ! sudo docker compose version >/dev/null 2>&1; then
               sudo dnf install -y docker-compose-plugin
             fi
 
-            # 최상위 .env 작성/갱신 (Compose 변수 치환)
+            # .env 채우기 (Secrets 필수)
             cat > .env <<'EOF'
             MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
             MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
             EOF
 
-            # Spring 외부 설정 파일 존재 체크 (없으면 경고만)
+            # 외부 프로퍼티 존재 확인
             if [ ! -f resources/application-prod.properties ]; then
               echo "resources/application-prod.properties not found. Make sure it's present and mounted."
             fi
 
-            # spring 디렉토리에서 최신 JAR를 app.jar로 고정
-            cd /home/ec2-user/kitalk/spring
-            LATEST_JAR=$(ls -t *.jar | head -1)
-            if [ -z "$LATEST_JAR" ]; then
-              echo "No JAR found in ~/kitalk/spring"; exit 1
-            fi
-            mv -f "$LATEST_JAR" app.jar
-            ls -al app.jar
+            # 업로드된 파일 확인
+            ls -al /home/ec2-user/kitalk/spring/app.jar
 
-            # 프로젝트 루트로 돌아가 배포
-            cd /home/ec2-user/kitalk
+            # 인프라(최초만) 시도
+            sudo docker compose up -d mysql redis || true
 
-            # (최초만) 인프라 띄우기 시도 — 이미 떠 있으면 OK
-            docker compose up -d mysql redis || true
+            # Spring 빌드/기동
+            sudo docker compose --profile spring up -d --build
 
-            # Spring 프로필 빌드·기동
-            docker compose --profile spring up -d --build
-
-            # 확인/정리
-            docker compose ps
-            docker image prune -f || true
+            sudo docker compose ps
+            sudo docker image prune -f || true
