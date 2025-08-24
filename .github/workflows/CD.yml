@@ -31,7 +31,7 @@ jobs:
           username: ec2-user
           key: ${{ secrets.SSH_KEY }}
           source: "build/libs/*.jar"
-          target: "/home/ec2-user/kitalk/BE/"
+          target: "/home/ec2-user/kitalk/spring/"
 
       - name: SSH & Deploy on EC2 (Amazon Linux 2023)
         uses: appleboy/ssh-action@v1.0.3
@@ -67,11 +67,11 @@ jobs:
               echo "⚠️ resources/application-prod.properties not found. Make sure it's present and mounted."
             fi
 
-            # BE 디렉토리에서 최신 JAR를 app.jar로 고정
-            cd /home/ec2-user/kitalk/BE
+            # spring 디렉토리에서 최신 JAR를 app.jar로 고정
+            cd /home/ec2-user/kitalk/spring
             LATEST_JAR=$(ls -t *.jar | head -1)
             if [ -z "$LATEST_JAR" ]; then
-              echo "No JAR found in ~/kitalk/BE"; exit 1
+              echo "No JAR found in ~/kitalk/spring"; exit 1
             fi
             mv -f "$LATEST_JAR" app.jar
             ls -al app.jar
