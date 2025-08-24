@@ -1,11 +1,14 @@
 package likelion.kitalk.phone.service;
 
+import java.util.function.Function;
 import likelion.kitalk.global.exception.CustomException;
 import likelion.kitalk.phone.dto.response.PhoneOrdersResponse;
 import likelion.kitalk.phone.dto.response.TopMenusResponse;
 import likelion.kitalk.phone.exception.PhoneOrderErrorCode;
+import likelion.kitalk.touch.entity.Menu;
 import likelion.kitalk.touch.entity.Order;
 import likelion.kitalk.touch.entity.OrderItems;
+import likelion.kitalk.touch.repository.MenuRepository;
 import likelion.kitalk.touch.repository.OrderItemsRepository;
 import likelion.kitalk.touch.repository.OrderItemsRepository.TopMenuRow;
 import likelion.kitalk.touch.repository.OrderRepository;
@@ -20,10 +23,13 @@ public class PhoneOrderService {
 
   private final OrderRepository orderRepository;
   private final OrderItemsRepository orderItemsRepository;
+  private final MenuRepository menuRepository;
 
-  public PhoneOrderService(OrderRepository orderRepository, OrderItemsRepository orderItemsRepository) {
+  public PhoneOrderService(OrderRepository orderRepository, OrderItemsRepository orderItemsRepository,
+      MenuRepository menuRepository) {
     this.orderRepository = orderRepository;
     this.orderItemsRepository = orderItemsRepository;
+    this.menuRepository = menuRepository;
   }
 
   public PhoneOrdersResponse getRecentOrders(String phone) {
@@ -48,12 +54,18 @@ public class PhoneOrderService {
     var blocks = new ArrayList<PhoneOrdersResponse.OrderBlock>();
     for (Order o : orders) {
       var lines = grouped.getOrDefault(o.getId(), List.of()).stream()
-          .map(oi -> new PhoneOrdersResponse.OrderLine(
-              oi.getMenuId(),
-              oi.getMenuName(),
-              oi.getPrice(),
-              oi.getTemp()
-          ))
+          .map(oi -> {
+            String profile = menuRepository.findById(oi.getMenuId())
+                .map(m -> m.getProfile())
+                .orElse(null); // profile 가져오기
+            return new PhoneOrdersResponse.OrderLine(
+                oi.getMenuId(),
+                oi.getMenuName(),
+                oi.getPrice(),
+                oi.getTemp(),
+                profile
+            );
+          })
           .toList();
 
       blocks.add(new PhoneOrdersResponse.OrderBlock(
@@ -66,15 +78,21 @@ public class PhoneOrderService {
 
   public TopMenusResponse getTopMenusByPhone(String phone) {
     List<TopMenuRow> rows = orderItemsRepository.findTopMenusByPhone(phone);
-
     if (rows.isEmpty()) {
       throw new CustomException(PhoneOrderErrorCode.PHONE_ORDER_NOT_FOUND);
     }
+
+    List<Long> menuIds = rows.stream().map(TopMenuRow::getMenuId).distinct().toList();
+
+    Map<Long, String> profileByMenu = new HashMap<>();
+    menuRepository.findAllById(menuIds).forEach(m -> profileByMenu.put(m.getId(), m.getProfile()));
 
     var list = rows.stream()
         .map(r -> new TopMenusResponse.MenuStat(
             r.getMenuId(),
             r.getMenuName(),
+            r.getTemp(),
+            profileByMenu.get(r.getMenuId()),
             r.getOrderCount()
         ))
         .toList();
