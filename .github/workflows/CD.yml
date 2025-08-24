@@ -1,0 +1,90 @@
+name: CD with Gradle (Spring on AL2023)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build with Gradle Wrapper -> jar
+        run: |
+          chmod +x ./gradlew
+          ./gradlew build -x test
+          ls -al build/libs
+
+      # 최신 JAR을 EC2(AL2023)로 복사 (계정: ec2-user)
+      - name: Transfer JAR to EC2 via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_KEY }}
+          source: "build/libs/*.jar"
+          target: "/home/ec2-user/kitalk/BE/"
+
+      - name: SSH & Deploy on EC2 (Amazon Linux 2023)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            set -euo pipefail
+
+            cd /home/ec2-user/kitalk
+
+            # AL2023: Docker & compose plugin 설치/기동 (idempotent)
+            if ! command -v docker >/dev/null 2>&1; then
+              sudo dnf update -y
+              sudo dnf install -y docker
+              sudo systemctl enable docker
+              sudo systemctl start docker
+              sudo usermod -aG docker ec2-user || true
+            fi
+            if ! docker compose version >/dev/null 2>&1; then
+              sudo dnf install -y docker-compose-plugin
+            fi
+
+            # 최상위 .env 작성/갱신 (Compose 변수 치환)
+            cat > .env <<'EOF'
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+            EOF
+
+            # Spring 외부 설정 파일 존재 체크 (없으면 경고만)
+            if [ ! -f resources/application-prod.properties ]; then
+              echo "⚠️ resources/application-prod.properties not found. Make sure it's present and mounted."
+            fi
+
+            # BE 디렉토리에서 최신 JAR를 app.jar로 고정
+            cd /home/ec2-user/kitalk/BE
+            LATEST_JAR=$(ls -t *.jar | head -1)
+            if [ -z "$LATEST_JAR" ]; then
+              echo "No JAR found in ~/kitalk/BE"; exit 1
+            fi
+            mv -f "$LATEST_JAR" app.jar
+            ls -al app.jar
+
+            # 프로젝트 루트로 돌아가 배포
+            cd /home/ec2-user/kitalk
+
+            # (최초만) 인프라 띄우기 시도 — 이미 떠 있으면 OK
+            docker compose up -d mysql redis || true
+
+            # Spring 프로필 빌드·기동
+            docker compose --profile spring up -d --build
+
+            # 확인/정리
+            docker compose ps
+            docker image prune -f || true
