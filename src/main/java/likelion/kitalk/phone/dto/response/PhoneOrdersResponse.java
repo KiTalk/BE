@@ -1,6 +1,7 @@
 package likelion.kitalk.phone.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record PhoneOrdersResponse(
@@ -8,6 +9,7 @@ public record PhoneOrdersResponse(
 ) {
   public record OrderBlock(
       @JsonProperty("order_id") Long orderId,
+      @JsonProperty("created_at") LocalDateTime createdAt,
       @JsonProperty("orders") List<OrderLine> orders
   ) {}
 
